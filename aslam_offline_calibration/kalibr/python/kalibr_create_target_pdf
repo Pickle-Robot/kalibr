@@ -134,7 +134,7 @@ def generateAprilBoard(canvas, n_cols, n_rows, tagSize, tagSpacing=0.25, tagFami
     if addCaption:
         pos = (tagSize / 5, -0.8 * tagSize * tagSpacing)
         caption = "{0}x{1} tags, size={2}cm and spacing={3}cm".format(n_rows,n_cols,tagSize,tagSpacing*tagSize)
-        c.text(pos[0], pos[1], caption, [text.size(1)])
+        c.text(pos[0], pos[1], caption, [text.size(5)])
 
 
 def generateCheckerboard(canvas, n_cols, n_rows, size_cols, size_rows):
