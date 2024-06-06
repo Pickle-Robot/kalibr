@@ -53,3 +53,7 @@ Build
 
 # vs-code
 .vscode
+
+**/venv/**
+
+**/*.pdf
