@@ -2,6 +2,7 @@
 # Thomas Schneider, Sept 2013
 # Codes from AprilTags C++ Library (http://people.csail.mit.edu/kaess/apriltags/)
 
+from typing import Optional
 from pyx import *
 import argparse
 import sys
@@ -86,8 +87,20 @@ def generateAprilTag(canvas, position, metricSize, tagSpacing, tagID, tagFamilil
             c.fill(path.rect(point[0], point[1], metricSquareSize, metricSquareSize),[color.rgb.black])
 
 #tagSpaceing in % of tagSize
-def generateAprilBoard(canvas, n_cols, n_rows, tagSize, tagSpacing=0.25, tagFamilily="t36h11", borderBits=2, symmCorners=True, ids=None, drawAxis=True, addIdCaption=True, addCaption=True):
-    
+def generateAprilBoard(canvas,
+                       n_cols,
+                       n_rows,
+                       tagSize,
+                       tagSpacing=0.25,
+                       tagFamilily="t36h11",
+                       borderBits=2,
+                       symmCorners=True,
+                       ids=None,
+                       drawAxis=True,
+                       addIdCaption=True,
+                       addCaption=True,
+                       captionText: Optional[str] = None):
+
     if(tagSpacing<0 or tagSpacing>1.0):
         print("[ERROR]: Invalid tagSpacing specified.  [0-1.0] of tagSize")
         sys.exit(0)
@@ -132,9 +145,12 @@ def generateAprilBoard(canvas, n_cols, n_rows, tagSize, tagSpacing=0.25, tagFami
 
     #text
     if addCaption:
-        pos = (tagSize / 5, -0.8 * tagSize * tagSpacing)
+        pos = (tagSize / 5, -0.7 * tagSize * tagSpacing)
         caption = "{0}x{1} tags, size={2}cm and spacing={3}cm".format(n_rows,n_cols,tagSize,tagSpacing*tagSize)
         c.text(pos[0], pos[1], caption, [text.size(5)])
+    if captionText:
+        pos = (tagSize * 0.43, -0.9 * tagSize * tagSpacing)
+        c.text(pos[0], pos[1], captionText, [text.size(5)])
 
 
 def generateCheckerboard(canvas, n_cols, n_rows, size_cols, size_rows):
@@ -179,6 +195,7 @@ if __name__ == "__main__":
     genericOptions.add_argument('--type', dest='gridType', help='The grid pattern type. (\'apriltag\' or \'checkerboard\')')
     genericOptions.add_argument('--nx', type=int, default=6, dest='n_cols', help='The number of tags in x direction (default: %(default)s)\n')
     genericOptions.add_argument('--ny', type=int, default=7, dest='n_rows', help='The number of tags in y direction (default: %(default)s)')
+    genericOptions.add_argument('--caption-text', type=str, default=None, dest='caption_text', help='Caption to add to the board (default: None)')
 
     aprilOptions = parser.add_argument_group('Apriltag arguments')    
     aprilOptions.add_argument('--tsize', type=float, default=0.08, dest='tsize', help='The size of one tag [m] (default: %(default)s)')
@@ -205,8 +222,15 @@ if __name__ == "__main__":
         sys.exit(0)
 
     # post-process arguments
-    parsed.ids = [int(x) for x in parsed.ids.split(" ") if x] if parsed.ids else None
- 
+    parsed.ids = [int(x) for x in parsed.ids.split(" ") if x] if parsed.ids else [i for i in range(parsed.n_cols*parsed.n_rows)]
+    if len(parsed.ids) != parsed.n_cols*parsed.n_rows:
+        print("[WARN]: Number of IDs does not match the number of tags.")
+        if len(parsed.ids) == 1:
+            print(f"[INFO]: Will generate IDs starting from {parsed.ids[0]}.")
+            parsed.ids = [i for i in range(parsed.ids[0], parsed.ids[0]+parsed.n_cols*parsed.n_rows)]
+        else:
+            sys.exit(0)
+
     #open a new canvas
     c = canvas.canvas()
     
@@ -224,6 +248,7 @@ if __name__ == "__main__":
                            drawAxis=False,
                            addCaption=parsed.add_caption,
                            addIdCaption=parsed.add_id_caption,
+                           captionText=parsed.caption_text,
         )
     elif parsed.gridType == "checkerboard":
         generateCheckerboard(c, parsed.n_cols, parsed.n_rows, parsed.chessSzX, parsed.chessSzY)
