@@ -156,7 +156,12 @@ def generateAprilBoard(canvas,
         c.text(pos_x, pos_y, caption, [pyx.text.size(5)])
     if captionText:
         pos = (tagSize * 0.43, -0.9 * tagSize * tagSpacing)
-        c.text(pos[0], pos[1], captionText, [text.size(5)])
+        c.text(pos[0], pos[1], captionText, [pyx.text.size(5)])
+    if captionTopText:
+        # Center the text laterally
+        pos_x = 0.5 * (tagSize * (n_cols + (n_cols-1)*tagSpacing)) - 0.5 * len(captionTopText) * text_width
+        pos_y = tagSize * n_rows * (1 + tagSpacing) - 0.5 * tagSize * tagSpacing
+        c.text(pos_x, pos_y, captionTopText, [pyx.text.size(5)])
 
 
 def generateCheckerboard(canvas, n_cols, n_rows, size_cols, size_rows):
@@ -202,6 +207,7 @@ if __name__ == "__main__":
     genericOptions.add_argument('--nx', type=int, default=6, dest='n_cols', help='The number of tags in x direction (default: %(default)s)\n')
     genericOptions.add_argument('--ny', type=int, default=7, dest='n_rows', help='The number of tags in y direction (default: %(default)s)')
     genericOptions.add_argument('--caption-text', type=str, default=None, dest='caption_text', help='Caption to add to the board (default: None)')
+    genericOptions.add_argument('--caption-top-text', type=str, default=None, dest='caption_top_text', help='Caption to add to the top of the board (default: None)')
 
     aprilOptions = parser.add_argument_group('Apriltag arguments')    
     aprilOptions.add_argument('--tsize', type=float, default=0.08, dest='tsize', help='The size of one tag [m] (default: %(default)s)')
@@ -255,6 +261,7 @@ if __name__ == "__main__":
                            addCaption=parsed.add_caption,
                            addIdCaption=parsed.add_id_caption,
                            captionText=parsed.caption_text,
+                           captionTopText=parsed.caption_top_text,
         )
     elif parsed.gridType == "checkerboard":
         generateCheckerboard(c, parsed.n_cols, parsed.n_rows, parsed.chessSzX, parsed.chessSzY)
