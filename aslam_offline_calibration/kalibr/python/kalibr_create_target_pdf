@@ -2,7 +2,7 @@
 # Thomas Schneider, Sept 2013
 # Codes from AprilTags C++ Library (http://people.csail.mit.edu/kaess/apriltags/)
 
-from typing import Optional
+from typing import Optional, Sequence
 import pyx
 import argparse
 import sys
@@ -130,22 +130,42 @@ def generateAprilTag(
 
 # tagSpaceing in % of tagSize
 def generateAprilBoard(
-    canvas,
-    n_cols,
-    n_rows,
-    tagSize,
-    tagSpacing=0.25,
-    tagFamilily="t36h11",
-    borderBits=2,
-    symmCorners=True,
-    ids=None,
-    drawAxis=True,
-    addIdCaption=True,
-    addCaption=True,
-    captionText: Optional[str] = None,
-    captionTopText: Optional[str] = None,
+    canvas: pyx.canvas,
+    n_cols: int,
+    n_rows: int,
+    tag_size: float,
+    tag_spacing_ratio: float = 0.25,
+    tag_family: str = "t36h11",
+    border_bits: int = 1,
+    use_sym_corners: bool = True,
+    ids: Sequence[int] | None = None,
+    draw_axis: bool = True,
+    add_id_caption: bool = True,
+    add_caption: bool = True,
+    caption_text: Optional[str] = None,
+    caption_top_text: Optional[str] = None,
 ):
-    if tagSpacing < 0 or tagSpacing > 1.0:
+    """Generate a grid of april tags.
+
+    Args:
+        canvas: pyx canvas to draw on.
+        n_cols: Number of tags in the x direction.
+        n_rows: Number of tags in the y direction.
+        tag_size: Tag size, in m, where the tag doesn't include the sym-corners and is measured from
+            the outside of the black border.
+        tag_spacing: Spacing between tags, specified as a ratio of the tag size
+            (e.g., tag_spacing_ratio of 0.1 is 0.1 * tag_size).
+        tag_family: Tag family to use.
+        border_bits: Border bits (1 or 2).
+        use_sym_corners: If True, generate symmetric corners.
+        ids: IDs to generate. If None, then generate a range from 0 to n_cols * n_rows.
+        draw_axis: If True, draw an axis.
+        add_id_caption: If True, add the tag ID as a caption under each tag.
+        add_caption: If True, add details of the tag-grid as a caption (e.g., size, spacing, etc.).
+        caption_text: If specified, add an additional caption text under the details caption.
+        caption_top_text: If specified, add a caption at the top of the tag-grid.
+    """
+    if tag_spacing_ratio < 0 or tag_spacing_ratio > 1.0:
         print("[ERROR]: Invalid tagSpacing specified.  [0-1.0] of tagSize")
         sys.exit(0)
 
@@ -153,13 +173,10 @@ def generateAprilBoard(
         ids = range(0, n_cols * n_rows)
 
     # convert to cm
-    tagSize = tagSize * 100.0
+    tag_size = tag_size * 100.0
 
     # get the tag familiy data
-    tagFamililyData = AprilTagCodes(tagFamilily)
-
-    # create one tag
-    numTags = n_cols * n_rows
+    tagFamililyData = AprilTagCodes(tag_family)
 
     # draw tags
     for y in range(0, n_rows):
@@ -167,63 +184,68 @@ def generateAprilBoard(
             idx = y * n_cols + x
             id = ids[idx]
 
-            pos = (x * (1 + tagSpacing) * tagSize, y * (1 + tagSpacing) * tagSize)
+            pos = (
+                x * (1 + tag_spacing_ratio) * tag_size,
+                y * (1 + tag_spacing_ratio) * tag_size,
+            )
             generateAprilTag(
                 canvas,
                 pos,
-                tagSize,
-                tagSpacing,
+                tag_size,
+                tag_spacing_ratio,
                 id,
                 tagFamililyData,
                 rotation=2,
-                borderBits=borderBits,
-                symmCorners=symmCorners,
+                borderBits=border_bits,
+                symmCorners=use_sym_corners,
             )
-            if addIdCaption:
+            if add_id_caption:
                 canvas.text(
-                    pos[0] + 0.45 * tagSize,
-                    pos[1] - 0.3 * tagSize * tagSpacing,
+                    pos[0] + 0.45 * tag_size,
+                    pos[1] - 0.3 * tag_size * tag_spacing_ratio,
                     "{0}".format(id),
                     [pyx.text.size(0)],
                 )
 
     # draw axis
-    pos = (-1.5 * tagSpacing * tagSize, -1.5 * tagSpacing * tagSize)
-    if drawAxis:
+    pos = (-1.5 * tag_spacing_ratio * tag_size, -1.5 * tag_spacing_ratio * tag_size)
+    if draw_axis:
         canvas.stroke(
-            pyx.path.line(pos[0], pos[1], pos[0] + tagSize * 0.3, pos[1]),
+            pyx.path.line(pos[0], pos[1], pos[0] + tag_size * 0.3, pos[1]),
             [
                 pyx.color.rgb.red,
-                deco.earrow(
+                pyx.deco.earrow(
                     [
-                        deco.stroked([pyx.color.rgb.red, style.linejoin.round]),
-                        deco.filled([pyx.color.rgb.red]),
+                        pyx.deco.stroked([pyx.color.rgb.red, pyx.style.linejoin.round]),
+                        pyx.deco.filled([pyx.color.rgb.red]),
                     ],
-                    size=tagSize * 0.10,
+                    size=tag_size * 0.10,
                 ),
             ],
         )
-        canvas.text(pos[0] + tagSize * 0.3, pos[1], "x")
+        canvas.text(pos[0] + tag_size * 0.3, pos[1], "x")
 
         canvas.stroke(
-            pyx.path.line(pos[0], pos[1], pos[0], pos[1] + tagSize * 0.3),
+            pyx.path.line(pos[0], pos[1], pos[0], pos[1] + tag_size * 0.3),
             [
                 pyx.color.rgb.green,
-                deco.earrow(
+                pyx.deco.earrow(
                     [
-                        deco.stroked([pyx.color.rgb.green, style.linejoin.round]),
-                        deco.filled([pyx.color.rgb.green]),
+                        pyx.deco.stroked(
+                            [pyx.color.rgb.green, pyx.style.linejoin.round]
+                        ),
+                        pyx.deco.filled([pyx.color.rgb.green]),
                     ],
-                    size=tagSize * 0.10,
+                    size=tag_size * 0.10,
                 ),
             ],
         )
-        canvas.text(pos[0], pos[1] + tagSize * 0.3, "y")
+        canvas.text(pos[0], pos[1] + tag_size * 0.3, "y")
 
     # Note about positions: the origin is at the bottom left corner of the *tag* and not the
     # symcorner
     text_width = 0.383  # cm per charecter
-    if addCaption:
+    if add_caption:
         caption = "size={:.2f}cm and spacing={:.2f}cm".format(
             n_rows,
             n_cols,
@@ -232,23 +254,26 @@ def generateAprilBoard(
 
         # Center the text laterally
         pos_x = (
-            0.5 * (tagSize * (n_cols + (n_cols - 1) * tagSpacing))
+            0.5 * (tag_size * (n_cols + (n_cols - 1) * tag_spacing_ratio))
             - 0.5 * len(caption) * text_width
         )
-        pos_y = -0.7 * tagSize * tagSpacing
+        pos_y = -0.7 * tag_size * tag_spacing_ratio
         # canvas.text(pos_x, pos_y, caption, [pyx.text.size(0).scale(0.8)])
         canvas.text(pos_x, pos_y, caption)
-    if captionText:
-        pos = (tagSize * 0.43, -0.9 * tagSize * tagSpacing)
-        canvas.text(pos[0], pos[1], captionText, [pyx.text.size(1)])
-    if captionTopText:
+    if caption_text:
+        pos = (tag_size * 0.43, -0.9 * tag_size * tag_spacing_ratio)
+        canvas.text(pos[0], pos[1], caption_text, [pyx.text.size(1)])
+    if caption_top_text:
         # Center the text laterally
         pos_x = (
-            0.5 * (tagSize * (n_cols + (n_cols - 1) * tagSpacing))
-            - 0.5 * len(captionTopText) * text_width
+            0.5 * (tag_size * (n_cols + (n_cols - 1) * tag_spacing_ratio))
+            - 0.5 * len(caption_top_text) * text_width
         )
-        pos_y = tagSize * n_rows * (1 + tagSpacing) - 0.5 * tagSize * tagSpacing
-        canvas.text(pos_x, pos_y, captionTopText, [pyx.text.size(1)])
+        pos_y = (
+            tag_size * n_rows * (1 + tag_spacing_ratio)
+            - 0.5 * tag_size * tag_spacing_ratio
+        )
+        canvas.text(pos_x, pos_y, caption_top_text, [pyx.text.size(1)])
 
 
 def generateCheckerboard(canvas, n_cols, n_rows, size_cols, size_rows):
@@ -400,6 +425,11 @@ def main() -> None:
         action="store_true",
         help="Add ID caption to each tag (defualts to False)",
     )
+    aprilOptions.add_argument(
+        "--draw-axis",
+        action="store_true",
+        help="Draw axis on the board (defualts to False)",
+    )
 
     checkerOptions = parser.add_argument_group("Checkerboard arguments")
     checkerOptions.add_argument(
@@ -422,10 +452,7 @@ def main() -> None:
         sys.exit(0)
 
     # Parser the argument list
-    try:
-        parsed = parser.parse_args()
-    except:
-        sys.exit(0)
+    parsed = parser.parse_args()
 
     # post-process arguments
     parsed.ids = (
@@ -461,11 +488,11 @@ def main() -> None:
             parsed.borderbits,
             parsed.symm_corners,
             parsed.ids,
-            drawAxis=False,
-            addCaption=parsed.add_caption,
-            addIdCaption=parsed.add_id_caption,
-            captionText=parsed.caption_text,
-            captionTopText=parsed.caption_top_text,
+            draw_axis=parsed.draw_axis,
+            add_caption=parsed.add_caption,
+            add_id_caption=parsed.add_id_caption,
+            caption_text=parsed.caption_text,
+            caption_top_text=parsed.caption_top_text,
         )
     elif parsed.gridType == "checkerboard":
         generateCheckerboard(
