@@ -6,6 +6,7 @@ from typing import Optional, Sequence, Tuple
 import pyx
 import argparse
 import sys
+import re
 
 import math
 import numpy as np
@@ -148,6 +149,7 @@ def generateAprilBoard(
     add_caption: bool = True,
     caption_text: Optional[str] = None,
     caption_top_text: Optional[str] = None,
+    border_size: Tuple[float, float] | None = None,
 ):
     """Generate a grid of april tags.
 
@@ -168,6 +170,8 @@ def generateAprilBoard(
         add_caption: If True, add details of the tag-grid as a caption (e.g., size, spacing, etc.).
         caption_text: If specified, add an additional caption text under the details caption.
         caption_top_text: If specified, add a caption at the top of the tag-grid.
+        border_size: (width, height) in m. If specified, draw a border of the specified size, centered
+            on the grid-board.
     """
     if tag_spacing_ratio < 0 or tag_spacing_ratio > 1.0:
         print("[ERROR]: Invalid tagSpacing specified.  [0-1.0] of tagSize")
@@ -260,27 +264,46 @@ def generateAprilBoard(
         print(f"{len(caption)=}")
 
         # Center the text laterally
-        pos_x = (
+        xpos_start = (
             0.5 * (tag_size_cm * (n_cols + (n_cols - 1) * tag_spacing_ratio))
             - 0.5 * len(caption) * text_width
         )
-        pos_y = -0.7 * tag_size_cm * tag_spacing_ratio
+        ypos_start = -0.7 * tag_size_cm * tag_spacing_ratio
         # canvas.text(pos_x, pos_y, caption, [pyx.text.size(0).scale(0.8)])
-        canvas.text(pos_x, pos_y, caption)
+        canvas.text(xpos_start, ypos_start, caption)
     if caption_text:
         pos = (tag_size_cm * 0.43, -0.9 * tag_size_cm * tag_spacing_ratio)
         canvas.text(pos[0], pos[1], caption_text, [pyx.text.size(1)])
     if caption_top_text:
         # Center the text laterally
-        pos_x = (
+        xpos_start = (
             0.5 * (tag_size_cm * (n_cols + (n_cols - 1) * tag_spacing_ratio))
             - 0.5 * len(caption_top_text) * text_width
         )
-        pos_y = (
+        ypos_start = (
             tag_size_cm * n_rows * (1 + tag_spacing_ratio)
             - 0.5 * tag_size_cm * tag_spacing_ratio
         )
-        canvas.text(pos_x, pos_y, caption_top_text, [pyx.text.size(1)])
+        canvas.text(xpos_start, ypos_start, caption_top_text, [pyx.text.size(1)])
+
+    # Draw a bounding box around the grid board
+    if border_size:
+        # The canvas origin is at the bottom left corner of the bottom-left tag, excluding the
+        # symmetric corners. That is, the sym-corners are in the 'negative' space.
+        width = border_size[0] * 100.0
+        height = border_size[1] * 100.0
+        xpos_canvas_to_gridcenter = 0.5 * (
+            tag_size_cm * (n_cols + (n_cols - 1) * tag_spacing_ratio)
+        )
+        ypos_canvas_to_gridcenter = 0.5 * (
+            tag_size_cm * (n_rows + (n_rows - 1) * tag_spacing_ratio)
+        )
+        xpos_canvas_to_border = xpos_canvas_to_gridcenter - 0.5 * width
+        ypos_canvas_to_border = ypos_canvas_to_gridcenter - 0.5 * height
+        canvas.stroke(
+            pyx.path.rect(xpos_canvas_to_border, ypos_canvas_to_border, width, height),
+            [pyx.color.rgb.black, pyx.style.linewidth.thin],
+        )
 
 
 def generateCheckerboard(canvas, n_cols, n_rows, size_cols, size_rows):
@@ -311,6 +334,42 @@ def generateCheckerboard(canvas, n_cols, n_rows, size_cols, size_rows):
 
     # pyx.text.preamble(r"\DeclareFixedFont{\LittleFont}{T1}{ptm}{b}{it}{0.75in}") #
     canvas.text(1.05 * size_cols, 0.04 * size_rows, caption)
+
+
+def parse_page_size(value: str) -> Tuple[float, float]:
+    """Parse page size and return size in m.
+
+    Args:
+        value: String to parse.
+
+    Raises:
+        argparse.ArgumentTypeError: If unable to parse the page size.
+
+    Returns:
+        (width, height) in m.
+    """
+    # Remove any whitespace
+    value = value.replace(" ", "")
+
+    # Match
+    size_pattern = re.compile(r"^(\d+\.?\d*)x(\d+\.?\d*)")
+    size_match = size_pattern.match(value)
+    if size_match is None:
+        raise argparse.ArgumentTypeError("Invalid page size format")
+
+    unit_conversion = {"cm": 0.01, "in": 0.0254, "mm": 0.001, "m": 1.0}
+    units = "|".join(unit_conversion.keys())
+    unit_pattern = re.compile(f".*({units})$")
+    unit_match = unit_pattern.match(value)
+    if unit_match is None:
+        raise argparse.ArgumentTypeError(
+            f"Invalid unit format. Acceptable units: {units}"
+        )
+
+    width, height = size_match.groups()
+    unit = unit_match.groups()[0]
+
+    return float(width) * unit_conversion[unit], float(height) * unit_conversion[unit]
 
 
 def main() -> None:
@@ -437,6 +496,13 @@ def main() -> None:
         action="store_true",
         help="Draw axis on the board (defualts to False)",
     )
+    aprilOptions.add_argument(
+        "--border-size",
+        type=parse_page_size,
+        default=None,
+        help="'width x height <unit>', where unit is 'in|mm|cm|m'. If specified, draw a border"
+        "centered on the grid-board",
+    )
 
     checkerOptions = parser.add_argument_group("Checkerboard arguments")
     checkerOptions.add_argument(
@@ -500,6 +566,7 @@ def main() -> None:
             add_id_caption=parsed.add_id_caption,
             caption_text=parsed.caption_text,
             caption_top_text=parsed.caption_top_text,
+            border_size=parsed.border_size,
         )
     elif parsed.gridType == "checkerboard":
         generateCheckerboard(
