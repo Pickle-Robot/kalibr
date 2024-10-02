@@ -2,7 +2,7 @@
 # Thomas Schneider, Sept 2013
 # Codes from AprilTags C++ Library (http://people.csail.mit.edu/kaess/apriltags/)
 
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Tuple
 import pyx
 import argparse
 import sys
@@ -29,81 +29,85 @@ class AprilTagCodes:
     }
 
     def __init__(self, chosenTagFamiliy):
-        try:
-            self.chosenTagFamiliy = chosenTagFamiliy
-            self.tagCodes = AprilTagCodes.TagFamilies[chosenTagFamiliy][0]
-            self.totalBits = AprilTagCodes.TagFamilies[chosenTagFamiliy][1]
-        except:
-            print("[ERROR]: Unknown tag familiy.")
-            sys.exit(0)
+        self.chosenTagFamiliy = chosenTagFamiliy
+        self.tagCodes = AprilTagCodes.TagFamilies[chosenTagFamiliy][0]
+        self.totalBits = AprilTagCodes.TagFamilies[chosenTagFamiliy][1]
 
 
 # borderBits must be consitent with the variable "blackBorder" in the detector code in file ethz_apriltag2/src/TagFamily.cc
 def generateAprilTag(
-    canvas,
-    position,
-    metricSize,
-    tagSpacing,
-    tagID,
-    tagFamililyData,
-    rotation=2,
-    symmCorners=True,
-    borderBits=2,
+    canvas: pyx.canvas,
+    position: Tuple[float, float],
+    tag_size: float,
+    tag_spacing_ratio: float,
+    tag_id: int,
+    tag_family_data: AprilTagCodes,
+    num_ccw_rotations: int = 2,
+    use_sym_corners: bool = True,
+    border_bits: int = 2,
 ):
+    """Generate a single tag on the canvas.
+
+    Args:
+        canvas: Canvas to draw tag on.
+        position: Position of the bottom-right corner of the tag, in cm.
+        tag_size: Tag size, in cm, where the tag doesn't include the sym-corners and is measured from
+            the outside of the black border.
+        tag_spacing_ratio: Spacing between tags, specified as a ratio of the tag size
+            (e.g., tag_spacing_ratio of 0.1 is 0.1 * tag_size).
+        tag_id: Tag ID.
+        tag_family_data: Tag family data.
+        num_ccw_rotations: Number of 90-degree counter-clockwise rotations to apply to the tag.
+        use_sym_corners: If True, generate symmetric corners.
+        border_bits: Border bits (1 or 2).
+    """
     # get the tag code
-    try:
-        tagCode = tagFamililyData.tagCodes[tagID]
-    except:
-        print(
-            "[ERROR]: Requested tag ID of {0} not available in the {1} TagFamiliy".format(
-                tagID, tagFamililyData.chosenTagFamiliy
-            )
-        )
+    tagCode = tag_family_data.tagCodes[tag_id]
 
     # calculate the bit size of the tag
-    sqrtBits = math.sqrt(tagFamililyData.totalBits)
-    bitSquareSize = metricSize / (sqrtBits + borderBits * 2)
+    sqrt_bits = math.sqrt(tag_family_data.totalBits)
+    bitSquareSize = tag_size / (sqrt_bits + border_bits * 2)
 
     # position of tag
     xPos = position[0]
     yPos = position[1]
 
     # borders (2x bit size)
-    borderSize = borderBits * bitSquareSize
+    borderSize = border_bits * bitSquareSize
 
     canvas.fill(
-        pyx.path.rect(xPos, yPos, metricSize, borderSize), [pyx.color.rgb.black]
+        pyx.path.rect(xPos, yPos, tag_size, borderSize), [pyx.color.rgb.black]
     )  # bottom
     canvas.fill(
-        pyx.path.rect(xPos, yPos + metricSize - borderSize, metricSize, borderSize),
+        pyx.path.rect(xPos, yPos + tag_size - borderSize, tag_size, borderSize),
         [pyx.color.rgb.black],
     )  # top
     canvas.fill(
-        pyx.path.rect(xPos + metricSize - borderSize, yPos, borderSize, metricSize),
+        pyx.path.rect(xPos + tag_size - borderSize, yPos, borderSize, tag_size),
         [pyx.color.rgb.black],
     )  # left
     canvas.fill(
-        pyx.path.rect(xPos, yPos, borderSize, metricSize), [pyx.color.rgb.black]
+        pyx.path.rect(xPos, yPos, borderSize, tag_size), [pyx.color.rgb.black]
     )  # right
 
     # create numpy matrix of code
-    codeMatrix = np.zeros((int(sqrtBits), int(sqrtBits)))
-    for i in range(0, int(sqrtBits)):
-        for j in range(0, int(sqrtBits)):
-            if not tagCode & (1 << int(sqrtBits) * i + j):
+    codeMatrix = np.zeros((int(sqrt_bits), int(sqrt_bits)))
+    for i in range(0, int(sqrt_bits)):
+        for j in range(0, int(sqrt_bits)):
+            if not tagCode & (1 << int(sqrt_bits) * i + j):
                 codeMatrix[i, j] = 1
 
     # rotation
-    codeMatrix = np.rot90(codeMatrix, rotation)
+    codeMatrix = np.rot90(codeMatrix, num_ccw_rotations)
 
     # bits
-    for i in range(0, int(sqrtBits)):
-        for j in range(0, int(sqrtBits)):
+    for i in range(0, int(sqrt_bits)):
+        for j in range(0, int(sqrt_bits)):
             if codeMatrix[i, j]:
                 canvas.fill(
                     pyx.path.rect(
-                        xPos + (j + borderBits) * bitSquareSize,
-                        yPos + ((borderBits - 1) + sqrtBits - i) * bitSquareSize,
+                        xPos + (j + border_bits) * bitSquareSize,
+                        yPos + ((border_bits - 1) + sqrt_bits - i) * bitSquareSize,
                         bitSquareSize,
                         bitSquareSize,
                     ),
@@ -111,14 +115,14 @@ def generateAprilTag(
                 )
 
     # add squares to make corners symmetric (decreases the effect of motion blur in the subpix refinement...)
-    if symmCorners:
-        metricSquareSize = tagSpacing * metricSize
+    if use_sym_corners:
+        metricSquareSize = tag_spacing_ratio * tag_size
 
         corners = [
             [xPos - metricSquareSize, yPos - metricSquareSize],
-            [xPos + metricSize, yPos - metricSquareSize],
-            [xPos + metricSize, yPos + metricSize],
-            [xPos - metricSquareSize, yPos + metricSize],
+            [xPos + tag_size, yPos - metricSquareSize],
+            [xPos + tag_size, yPos + tag_size],
+            [xPos - metricSquareSize, yPos + tag_size],
         ]
 
         for point in corners:
@@ -173,10 +177,10 @@ def generateAprilBoard(
         ids = range(0, n_cols * n_rows)
 
     # convert to cm
-    tag_size = tag_size * 100.0
+    tag_size_cm = tag_size * 100.0
 
     # get the tag familiy data
-    tagFamililyData = AprilTagCodes(tag_family)
+    tag_family_data = AprilTagCodes(tag_family)
 
     # draw tags
     for y in range(0, n_rows):
@@ -185,33 +189,36 @@ def generateAprilBoard(
             id = ids[idx]
 
             pos = (
-                x * (1 + tag_spacing_ratio) * tag_size,
-                y * (1 + tag_spacing_ratio) * tag_size,
+                x * (1 + tag_spacing_ratio) * tag_size_cm,
+                y * (1 + tag_spacing_ratio) * tag_size_cm,
             )
             generateAprilTag(
                 canvas,
                 pos,
-                tag_size,
+                tag_size_cm,
                 tag_spacing_ratio,
                 id,
-                tagFamililyData,
-                rotation=2,
-                borderBits=border_bits,
-                symmCorners=use_sym_corners,
+                tag_family_data,
+                num_ccw_rotations=2,
+                border_bits=border_bits,
+                use_sym_corners=use_sym_corners,
             )
             if add_id_caption:
                 canvas.text(
-                    pos[0] + 0.45 * tag_size,
-                    pos[1] - 0.3 * tag_size * tag_spacing_ratio,
+                    pos[0] + 0.45 * tag_size_cm,
+                    pos[1] - 0.3 * tag_size_cm * tag_spacing_ratio,
                     "{0}".format(id),
                     [pyx.text.size(0)],
                 )
 
     # draw axis
-    pos = (-1.5 * tag_spacing_ratio * tag_size, -1.5 * tag_spacing_ratio * tag_size)
     if draw_axis:
+        pos = (
+            -1.5 * tag_spacing_ratio * tag_size_cm,
+            -1.5 * tag_spacing_ratio * tag_size_cm,
+        )
         canvas.stroke(
-            pyx.path.line(pos[0], pos[1], pos[0] + tag_size * 0.3, pos[1]),
+            pyx.path.line(pos[0], pos[1], pos[0] + tag_size_cm * 0.3, pos[1]),
             [
                 pyx.color.rgb.red,
                 pyx.deco.earrow(
@@ -219,14 +226,14 @@ def generateAprilBoard(
                         pyx.deco.stroked([pyx.color.rgb.red, pyx.style.linejoin.round]),
                         pyx.deco.filled([pyx.color.rgb.red]),
                     ],
-                    size=tag_size * 0.10,
+                    size=tag_size_cm * 0.10,
                 ),
             ],
         )
-        canvas.text(pos[0] + tag_size * 0.3, pos[1], "x")
+        canvas.text(pos[0] + tag_size_cm * 0.3, pos[1], "x")
 
         canvas.stroke(
-            pyx.path.line(pos[0], pos[1], pos[0], pos[1] + tag_size * 0.3),
+            pyx.path.line(pos[0], pos[1], pos[0], pos[1] + tag_size_cm * 0.3),
             [
                 pyx.color.rgb.green,
                 pyx.deco.earrow(
@@ -236,11 +243,11 @@ def generateAprilBoard(
                         ),
                         pyx.deco.filled([pyx.color.rgb.green]),
                     ],
-                    size=tag_size * 0.10,
+                    size=tag_size_cm * 0.10,
                 ),
             ],
         )
-        canvas.text(pos[0], pos[1] + tag_size * 0.3, "y")
+        canvas.text(pos[0], pos[1] + tag_size_cm * 0.3, "y")
 
     # Note about positions: the origin is at the bottom left corner of the *tag* and not the
     # symcorner
@@ -254,24 +261,24 @@ def generateAprilBoard(
 
         # Center the text laterally
         pos_x = (
-            0.5 * (tag_size * (n_cols + (n_cols - 1) * tag_spacing_ratio))
+            0.5 * (tag_size_cm * (n_cols + (n_cols - 1) * tag_spacing_ratio))
             - 0.5 * len(caption) * text_width
         )
-        pos_y = -0.7 * tag_size * tag_spacing_ratio
+        pos_y = -0.7 * tag_size_cm * tag_spacing_ratio
         # canvas.text(pos_x, pos_y, caption, [pyx.text.size(0).scale(0.8)])
         canvas.text(pos_x, pos_y, caption)
     if caption_text:
-        pos = (tag_size * 0.43, -0.9 * tag_size * tag_spacing_ratio)
+        pos = (tag_size_cm * 0.43, -0.9 * tag_size_cm * tag_spacing_ratio)
         canvas.text(pos[0], pos[1], caption_text, [pyx.text.size(1)])
     if caption_top_text:
         # Center the text laterally
         pos_x = (
-            0.5 * (tag_size * (n_cols + (n_cols - 1) * tag_spacing_ratio))
+            0.5 * (tag_size_cm * (n_cols + (n_cols - 1) * tag_spacing_ratio))
             - 0.5 * len(caption_top_text) * text_width
         )
         pos_y = (
-            tag_size * n_rows * (1 + tag_spacing_ratio)
-            - 0.5 * tag_size * tag_spacing_ratio
+            tag_size_cm * n_rows * (1 + tag_spacing_ratio)
+            - 0.5 * tag_size_cm * tag_spacing_ratio
         )
         canvas.text(pos_x, pos_y, caption_top_text, [pyx.text.size(1)])
 
