@@ -210,9 +210,9 @@ def generateAprilBoard(
             if add_id_caption:
                 canvas.text(
                     pos[0] + 0.45 * tag_size_cm,
-                    pos[1] - 0.3 * tag_size_cm * tag_spacing_ratio,
+                    pos[1] - 0.7 * tag_size_cm * tag_spacing_ratio,
                     "{0}".format(id),
-                    [pyx.text.size(0)],
+                    [pyx.text.size(5)],
                 )
 
     # draw axis
@@ -264,16 +264,22 @@ def generateAprilBoard(
         print(f"{len(caption)=}")
 
         # Center the text laterally
+        n_cols_text = 1  # Place text under the first tag
+        # n_cols_text = n_cols
         xpos_start = (
-            0.5 * (tag_size_cm * (n_cols + (n_cols - 1) * tag_spacing_ratio))
+            0.5 * (tag_size_cm * (n_cols_text + (n_cols_text - 1) * tag_spacing_ratio))
             - 0.5 * len(caption) * text_width
         )
-        ypos_start = -0.7 * tag_size_cm * tag_spacing_ratio
+        # ypos_start = -0.7 * tag_size_cm * tag_spacing_ratio
+        ypos_start = (
+            tag_size_cm * (n_rows + n_rows * tag_spacing_ratio)
+            - 0.5 * tag_size_cm * tag_spacing_ratio
+        )
         # canvas.text(pos_x, pos_y, caption, [pyx.text.size(0).scale(0.8)])
-        canvas.text(xpos_start, ypos_start, caption)
+        canvas.text(xpos_start, ypos_start, caption, [pyx.text.size(5)])
     if caption_text:
         pos = (tag_size_cm * 0.43, -0.9 * tag_size_cm * tag_spacing_ratio)
-        canvas.text(pos[0], pos[1], caption_text, [pyx.text.size(1)])
+        canvas.text(pos[0], pos[1], caption_text, [pyx.text.size(5)])
     if caption_top_text:
         # Center the text laterally
         xpos_start = (
@@ -284,7 +290,7 @@ def generateAprilBoard(
             tag_size_cm * n_rows * (1 + tag_spacing_ratio)
             - 0.5 * tag_size_cm * tag_spacing_ratio
         )
-        canvas.text(xpos_start, ypos_start, caption_top_text, [pyx.text.size(1)])
+        canvas.text(xpos_start, ypos_start, caption_top_text, [pyx.text.size(5)])
 
     # Draw a bounding box around the grid board
     if border_size:
