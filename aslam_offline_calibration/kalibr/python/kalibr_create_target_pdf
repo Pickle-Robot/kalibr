@@ -257,9 +257,9 @@ def generateAprilBoard(
     # symcorner
     text_width = 0.383  # cm per charecter
     if add_caption:
-        caption = "size={:.2f}cm and spacing={:.2f}cm".format(
-            n_rows,
-            n_cols,
+        caption = "tag-size={:.2f}cm; spacing={:.2f}cm".format(
+            tag_size_cm,
+            tag_size_cm * tag_spacing_ratio,
         )
         print(f"{len(caption)=}")
 
