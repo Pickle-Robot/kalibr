@@ -408,6 +408,7 @@ def main() -> None:
     genericOptions.add_argument(
         "--type",
         dest="gridType",
+        default="apriltag",
         help="The grid pattern type. ('apriltag' or 'checkerboard')",
     )
     genericOptions.add_argument(
@@ -550,6 +551,7 @@ def main() -> None:
     c = pyx.canvas.canvas()
 
     # draw the board
+    print(f"[INFO]: Generating {parsed.gridType} board")
     if parsed.gridType == "apriltag":
         generateAprilBoard(
             c,
