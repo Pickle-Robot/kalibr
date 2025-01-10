@@ -1,3 +1,11 @@
+# Deprecated
+!!!!!!!!
+:warning:
+
+This repo was mainly used for the fiducial-board generation script, which is now relocated to the [perception-tools repo](https://github.com/Pickle-Robot/perception-tools/tree/main/fiducial_board_generators).
+
+
+
 ![Kalibr](https://raw.githubusercontent.com/wiki/ethz-asl/kalibr/images/kalibr_small.png)
 
 [![ROS1 Ubuntu 20.04](https://github.com/ethz-asl/kalibr/actions/workflows/docker_2004_build.yaml/badge.svg)](https://github.com/ethz-asl/kalibr/actions/workflows/docker_2004_build.yaml)
