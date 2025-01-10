@@ -1,5 +1,6 @@
 # Deprecated
 !!!!!!!!
+
 :warning:
 
 This repo was mainly used for the fiducial-board generation script, which is now relocated to the [perception-tools repo](https://github.com/Pickle-Robot/perception-tools/tree/main/fiducial_board_generators).
